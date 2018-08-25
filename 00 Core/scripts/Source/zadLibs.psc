@@ -798,6 +798,20 @@ Armor Function GetWornDevice(Actor akActor, Keyword kw)
 	return retval
 EndFunction
 
+; Returns the name of a given inventory device
+String Function GetDeviceName(armor device)
+	String retval = ""
+    ObjectReference tmpORef = PlayerRef.placeAtMe(device, abInitiallyDisabled = true)
+    zadEquipScript tmpZRef = tmpORef as zadEquipScript
+    if tmpZRef != none
+        retval = tmpZRef.deviceName
+    Else
+        Warn("GetDeviceName received non DD argument.")
+    Endif
+    tmpORef.delete()
+    return retval
+EndFunction
+
 ; Finds device based on rendered device keywords (e.g. keyword zad_DeviousBelt also returns a harness)
 ; Useful for situation where you just want to get the device occupying a specific slot without further differentiation
 Armor Function GetWornDeviceFuzzyMatch(Actor akActor, Keyword kw)
@@ -2423,13 +2437,13 @@ EndFunction
 Function ApplyGagEffect(actor akActor)	
 	; apply this affect to actual gags only, not hoods that also share this keyword.
 	If akActor.WornHasKeyword(zad_GagNoOpenMouth)
+		SendGagEffectEvent(akActor, false)
 		return
 	EndIf
 	If akActor.WornHasKeyword(zad_DeviousGagLarge)
 		if (GetPhonemeModifier(akActor, 0, 1) != 100 || GetPhonemeModifier(akActor, 0, 11) != 30 || GetPhonemeModifier(akActor, 0, 0) != 100 || GetPhonemeModifier(akActor, 0, 5) != 100) && GetPhonemeModifier(akActor, 0, 0) != 70 ; Last check is for vibration mouth expressions. HoC
 			SetPhonemeModifier(akActor, 0, 0, 100)
 			SetPhonemeModifier(akActor, 0, 1, 100)
-			;SetPhonemeModifier(akActor, 0, 5, 100)
 			SetPhonemeModifier(akActor, 0, 11, 30)
 			
 			SetPhonemeModifier(akActor, 1, 4, 100)
@@ -2437,12 +2451,14 @@ Function ApplyGagEffect(actor akActor)
 			SetPhonemeModifier(akActor, 1, 6, 100)
 			SetPhonemeModifier(akActor, 1, 7, 100)
 		EndIf
+		SendGagEffectEvent(akActor, false)
 		Return
 	EndIf
 	if (GetPhonemeModifier(akActor, 0, 1) != 100 || GetPhonemeModifier(akActor, 0, 11) != 70) && GetPhonemeModifier(akActor, 0, 0) != 70 ; Last check is for vibration mouth expressions. HoC
 		SetPhonemeModifier(akActor, 0, 1, 100)
 		SetPhonemeModifier(akActor, 0, 11, 70)
 	EndIf
+	SendGagEffectEvent(akActor, false)
 EndFunction
 
 Function RemoveGagEffect(actor akActor)
@@ -2460,6 +2476,17 @@ Function RemoveGagEffect(actor akActor)
 		SetPhonemeModifier(akActor, 0, 1, 0)
 		SetPhonemeModifier(akActor, 0, 11, 0)
 	Endif
+	SendGagEffectEvent(akActor, true) 
+EndFunction
+
+
+Function SendGagEffectEvent(actor akActor, bool isRemove)
+	Int Handle = ModEvent.Create("GagExpressionStateChange")
+	If (Handle)		
+		ModEvent.PushForm(Handle, akActor)
+		ModEvent.PushBool(Handle, isRemove)	
+		ModEvent.Send(Handle)
+	Endif	
 EndFunction
 
 string Function MakeSingularIfPlural(string theString)
